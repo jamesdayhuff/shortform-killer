@@ -39,6 +39,13 @@
       "css": ["facebook.css"],
       "run_at": "document_start",
       "all_frames": false
+    },
+    {
+      "matches": ["*://*.facebook.com/*"],
+      "js": ["fb-history.js"],
+      "run_at": "document_start",
+      "all_frames": false,
+      "world": "MAIN"
     }
   ],
   "declarative_net_request": {
