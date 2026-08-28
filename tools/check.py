@@ -27,7 +27,40 @@ def check_exists(path, why):
         problems.append("%s is referenced by %s but does not exist" % (path, why))
 
 
+# Chrome reserves a leading underscore for its own use inside an unpacked
+# extension. It creates _metadata itself and reads _locales; every other
+# such name makes the whole extension fail to load with "Could not load
+# manifest", naming a file that has nothing to do with the manifest.
+RESERVED_OK = {"_metadata", "_locales"}
+
+# Directories that are not part of the loaded extension.
+SKIP_DIRS = {".git", "node_modules"}
+
+
+def check_no_reserved_names():
+    """Reject any path component starting with "_".
+
+    A scratch file called _fbfixture.html once blocked the extension from
+    loading at all. Chrome scans the whole directory, so a stray temp file
+    anywhere under the root is fatal — keep scratch files outside the
+    extension folder.
+    """
+    for dirpath, dirnames, filenames in os.walk(ROOT):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        for name in list(dirnames) + filenames:
+            if name.startswith("_") and name not in RESERVED_OK:
+                where = os.path.join(rel(dirpath), name).lstrip("./")
+                problems.append(
+                    "%s starts with \"_\", which Chrome reserves — the extension "
+                    "will refuse to load. Rename it or move it out of the "
+                    "extension folder." % where
+                )
+
+
 def main():
+    # 0. Nothing Chrome will reject outright.
+    check_no_reserved_names()
+
     # 1. Manifest parses and everything it points at exists.
     with open(os.path.join(ROOT, "manifest.json")) as handle:
         manifest = json.load(handle)

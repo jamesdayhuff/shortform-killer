@@ -102,10 +102,18 @@ Run the pre-flight check before reloading the extension:
 python3 tools/check.py
 ```
 
-It verifies that assets are *referenced* rather than merely present (a
-missing `<script src>` shipped once), and that every redirect target is
-listed in `web_accessible_resources` — an omission there makes the redirect
-fail silently with no error anywhere.
+It verifies three things that each broke the extension once:
+
+- **No filename anywhere starts with `_`.** Chrome reserves that prefix and
+  refuses to load the *entire* extension if it finds one, reporting
+  `Could not load manifest` while naming a file that has nothing to do with
+  the manifest. A stray scratch file called `_fbfixture.html` caused exactly
+  that. Chrome's own `_metadata` and `_locales` are allowed. **Keep scratch
+  and temp files outside the extension folder.**
+- **Assets are *referenced*, not merely present** — a missing `<script src>`
+  shipped once, with the file sitting right there on disk.
+- **Every redirect target is in `web_accessible_resources`** — an omission
+  there makes the redirect fail silently, with no error anywhere.
 
 ## Maintenance note
 
