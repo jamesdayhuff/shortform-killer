@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Shortform Killer</title>
+<link rel="stylesheet" href="popup.css">
+<div class="wrap">
+  <div class="head">
+    <span class="mark" aria-hidden="true"></span>
+    <h1>Shortform Killer</h1>
+  </div>
+
+  <label class="row" for="toggle">
+    <span class="label">
+      <span class="title">Block Shorts</span>
+      <span class="state" id="state">Loading…</span>
+    </span>
+    <input type="checkbox" id="toggle" role="switch">
+    <span class="switch" aria-hidden="true"></span>
+  </label>
+
+  <p class="foot">Shorts are hidden from the feed and search, and any
+    <code>/shorts/</code> link gets intercepted.</p>
+</div>
+<script src="popup.js"></script>

@@ -1,0 +1,66 @@
+/* Shortform Killer — all hiding is gated on html[data-sfk-on="1"].
+ * Toggling the extension flips that one attribute, so nothing here needs
+ * to be re-injected and nothing is ever removed from the DOM.
+ *
+ * These are YouTube-internal custom element names, not a public API. If
+ * Shorts reappear on one surface after a YouTube update, the fix is a
+ * selector in this file. Counts in the comments below were verified
+ * against live youtube.com.
+ */
+
+/* --- Shelves: the big Shorts carousels ------------------------------- */
+
+/* Current search/browse Shorts shelf. Verified to contain only Shorts
+ * links and to own its own "Shorts" heading, so hiding it leaves no
+ * orphan title behind. Do NOT climb to the enclosing
+ * ytd-item-section-renderer — that section also holds the ordinary search
+ * results (~130 of them), and hiding it wipes out the whole page. */
+html[data-sfk-on="1"] grid-shelf-view-model:has(a[href^="/shorts/"]),
+
+/* Home feed "Shorts" shelf, and its wrapper so the row collapses */
+html[data-sfk-on="1"] ytd-rich-shelf-renderer[is-shorts],
+html[data-sfk-on="1"] ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts]),
+
+/* Older reel shelf. Retired on search as of this writing but still used on
+ * some surfaces, so it stays as a fallback. */
+html[data-sfk-on="1"] ytd-reel-shelf-renderer,
+html[data-sfk-on="1"] ytd-shelf-renderer:has(ytd-reel-shelf-renderer),
+
+/* --- Individual Shorts tiles ----------------------------------------- */
+
+/* Current Shorts lockup element, wherever it appears */
+html[data-sfk-on="1"] ytm-shorts-lockup-view-model,
+html[data-sfk-on="1"] ytm-shorts-lockup-view-model-v2,
+
+/* Any tile whose link points at a Short. Surface-agnostic on purpose:
+ * this also cleans up subscriptions and the watch-page sidebar. Hiding the
+ * tile rather than the lockup inside it stops empty cells being left in
+ * the grid. */
+html[data-sfk-on="1"] ytd-rich-item-renderer:has(a[href^="/shorts/"]),
+html[data-sfk-on="1"] ytd-rich-item-renderer:has(ytm-shorts-lockup-view-model),
+html[data-sfk-on="1"] ytd-video-renderer:has(a[href^="/shorts/"]),
+html[data-sfk-on="1"] ytd-grid-video-renderer:has(a[href^="/shorts/"]),
+html[data-sfk-on="1"] ytd-compact-video-renderer:has(a[href^="/shorts/"]),
+html[data-sfk-on="1"] ytd-playlist-video-renderer:has(a[href^="/shorts/"]),
+
+/* --- Navigation entry points ----------------------------------------- */
+
+/* Collapsed mini rail — this one does carry an href. */
+html[data-sfk-on="1"] ytd-mini-guide-entry-renderer:has(a[href^="/shorts"]),
+
+/* Expanded sidebar — the Shorts entry has NO href, only a localized
+ * title, so it needs two hooks: the English title for most users, and the
+ * Shorts glyph's path data, which is language-independent. */
+html[data-sfk-on="1"] ytd-guide-entry-renderer:has(a[title="Shorts"]),
+html[data-sfk-on="1"] ytd-guide-entry-renderer:has(svg path[d^="m13.467"]),
+html[data-sfk-on="1"] ytd-mini-guide-entry-renderer:has(svg path[d^="m13.467"]),
+
+/* Channel page "Shorts" tab */
+html[data-sfk-on="1"] yt-tab-shape[tab-title="Shorts"],
+html[data-sfk-on="1"] ytd-tab-renderer:has(a[href$="/shorts"]),
+
+/* --- Marked by content.js where CSS alone can't reach ---------------- */
+
+html[data-sfk-on="1"] [data-sfk-hide="1"] {
+  display: none !important;
+}
