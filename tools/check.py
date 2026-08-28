@@ -55,6 +55,10 @@ def check_no_reserved_names():
                     "will refuse to load. Rename it or move it out of the "
                     "extension folder." % where
                 )
+        # Don't descend into the reserved directories. Chrome fills _metadata
+        # with underscore-prefixed files of its own, and flagging those told
+        # you to rename a file Chrome had just written itself.
+        dirnames[:] = [d for d in dirnames if d not in RESERVED_OK]
 
 
 def main():
@@ -97,7 +101,36 @@ def main():
                     "(the redirect will fail silently)" % page
                 )
 
-    # 3. Each HTML page references its own stylesheet and script, and every
+    # 3. Every sfk: event a "world": "MAIN" script names has a listener on
+    #    the isolated-world side. A main-world script exists only to shout
+    #    across the world boundary, and a typo in the event name leaves both
+    #    halves present, valid, and completely inert — which is how a Reel
+    #    opened by in-page navigation once played straight through.
+    def world_js(main):
+        paths = []
+        for script in manifest["content_scripts"]:
+            if (script.get("world") == "MAIN") is main:
+                paths.extend(script.get("js", []))
+        return [p for p in paths if os.path.exists(os.path.join(ROOT, p))]
+
+    def read(path):
+        with open(os.path.join(ROOT, path)) as handle:
+            return handle.read()
+
+    # Matched on the string literal rather than the dispatchEvent call, since
+    # the name is usually held in a const by the time it is dispatched.
+    isolated = "\n".join(read(p) for p in world_js(False))
+    listened = set(re.findall(r"""addEventListener\(\s*['"](sfk:[^'"]+)""", isolated))
+    for path in world_js(True):
+        for event in sorted(set(re.findall(r"""['"](sfk:[^'"]+)['"]""", read(path)))):
+            if event not in listened:
+                problems.append(
+                    '%s names the event "%s" but no isolated-world content '
+                    "script listens for it — the bridge dispatches into "
+                    "silence" % (path, event)
+                )
+
+    # 4. Each HTML page references its own stylesheet and script, and every
     #    referenced local asset exists. This is the check that would have
     #    caught the missing <script src="blocked.js">.
     for name in sorted(os.listdir(ROOT)):

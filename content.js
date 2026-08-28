@@ -79,15 +79,22 @@ function start() {
   window.addEventListener('yt-navigate-finish', guard, true);
   window.addEventListener('popstate', guard);
 
-  /* Facebook routes through the history API with no custom event, so the
-   * patch below is what catches it there. */
-  for (const method of ['pushState', 'replaceState']) {
-    const original = history[method];
-    history[method] = function (...args) {
-      const result = original.apply(this, args);
-      guard();
-      return result;
-    };
+  /* Facebook routes through the history API and fires no event of its own.
+   * Patching history.pushState from in here would do nothing: this script
+   * runs in an isolated world with its own copy of the JS globals, so the
+   * page's call still reaches the untouched original. fb-history.js is
+   * injected into the page's world instead and re-broadcasts the call as
+   * this event, which does cross the world boundary. */
+  window.addEventListener('sfk:navigate', guard);
+
+  /* Safety net under all of the above: catch any URL change, however it
+   * happened, on the next DOM mutation. Wired into the observer below. */
+  let lastHref = location.href;
+
+  function guardOnHrefChange() {
+    if (location.href === lastHref) return;
+    lastHref = location.href;
+    guard();
   }
 
   /* --- Observer safety net -------------------------------------------- */
@@ -223,7 +230,15 @@ function start() {
   }
 
   function observe() {
-    new MutationObserver(scheduleSweep).observe(document.body, {
+    /* The href check runs inline rather than through scheduleSweep's idle
+     * callback — it is one string compare, and it has to beat the Reel to
+     * the screen. */
+    const onMutation = () => {
+      guardOnHrefChange();
+      scheduleSweep();
+    };
+
+    new MutationObserver(onMutation).observe(document.body, {
       childList: true,
       subtree: true,
     });
