@@ -61,6 +61,7 @@ background.js        service worker: state, ruleset enable/disable, badge
 popup.html/.css/.js  the on/off switch
 blocked.html/.css/.js  the interstitial
 tools/make_icons.py  regenerates icons/ using only the Python stdlib
+tools/check.py       pre-flight check: manifest, rules, page asset wiring
 ```
 
 ## Maintenance note
