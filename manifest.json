@@ -1,10 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Shortform Killer",
-  "version": "1.0.0",
-  "description": "Hides YouTube Shorts everywhere and hard-blocks /shorts/ URLs. Go do 5 pushups instead.",
+  "version": "1.1.0",
+  "description": "Hides YouTube Shorts and Facebook Reels, and hard-blocks their URLs. Go do 5 pushups instead.",
   "permissions": ["storage", "declarativeNetRequest"],
-  "host_permissions": ["*://*.youtube.com/*"],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "*://*.facebook.com/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
@@ -29,6 +32,13 @@
       "css": ["hide.css"],
       "run_at": "document_start",
       "all_frames": false
+    },
+    {
+      "matches": ["*://*.facebook.com/*"],
+      "js": ["content.js"],
+      "css": ["facebook.css"],
+      "run_at": "document_start",
+      "all_frames": false
     }
   ],
   "declarative_net_request": {
@@ -43,7 +53,7 @@
   "web_accessible_resources": [
     {
       "resources": ["blocked.html"],
-      "matches": ["*://*.youtube.com/*"]
+      "matches": ["*://*.youtube.com/*", "*://*.facebook.com/*"]
     }
   ]
 }

@@ -3,3 +3,7 @@
 *.swo
 .vscode/
 .idea/
+
+# Chrome writes this into the unpacked extension folder when it indexes the
+# declarativeNetRequest ruleset. Generated, binary, regenerated on every load.
+_metadata/

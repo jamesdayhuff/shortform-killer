@@ -1,0 +1,29 @@
+/* Shortform Killer — Facebook. Gated on html[data-sfk-on="1"] exactly like
+ * the YouTube stylesheet, so the popup toggle controls both sites at once.
+ *
+ * Facebook ships obfuscated, generated class names and no stable custom
+ * elements, so there is nothing here as durable as YouTube's ytd-* tags.
+ * The one dependable signal is the link target, so every rule below keys
+ * off href and nothing else.
+ *
+ * Scope note: all of this is confined to [role="navigation"]. Reels that
+ * appear inline in the news feed are deliberately NOT hidden here — the
+ * feed is a moving target of generated markup, and a wrong guess there
+ * hides real posts. Opening one is caught by the URL block instead.
+ */
+
+/* The nav row that holds the Reels link. [role="listitem"] is Facebook's
+ * usual wrapper for a left-nav entry; the bare-anchor rules below are the
+ * fallback for when it isn't. */
+html[data-sfk-on="1"] [role="navigation"] [role="listitem"]:has(a[href*="/reel/"]),
+html[data-sfk-on="1"] [role="navigation"] [role="listitem"]:has(a[href*="/reels/"]),
+
+/* Fallback: hide the link itself if the row wrapper isn't there. */
+html[data-sfk-on="1"] [role="navigation"] a[href*="/reel/"],
+html[data-sfk-on="1"] [role="navigation"] a[href*="/reels/"],
+
+/* Marked by content.js, which walks up from the link to the nearest
+ * row-like ancestor when neither of the above lands. */
+html[data-sfk-on="1"] [data-sfk-hide="1"] {
+  display: none !important;
+}

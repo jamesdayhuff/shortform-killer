@@ -53,7 +53,10 @@ def main():
     for rule in rules:
         target = rule["action"].get("redirect", {}).get("extensionPath")
         if target:
-            page = target.lstrip("/")
+            # extensionPath may carry a query string (?from=youtube); the
+            # file on disk and the web_accessible_resources entry are both
+            # the bare path.
+            page = target.lstrip("/").split("?", 1)[0].split("#", 1)[0]
             check_exists(page, "rules.json redirect")
             if page not in exposed:
                 problems.append(

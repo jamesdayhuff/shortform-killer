@@ -4,10 +4,34 @@
     "priority": 1,
     "action": {
       "type": "redirect",
-      "redirect": { "extensionPath": "/blocked.html" }
+      "redirect": { "extensionPath": "/blocked.html?from=youtube" }
     },
     "condition": {
       "urlFilter": "||youtube.com/shorts",
+      "resourceTypes": ["main_frame"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "extensionPath": "/blocked.html?from=facebook" }
+    },
+    "condition": {
+      "urlFilter": "||facebook.com/reel/",
+      "resourceTypes": ["main_frame"]
+    }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "extensionPath": "/blocked.html?from=facebook" }
+    },
+    "condition": {
+      "urlFilter": "||facebook.com/reels/",
       "resourceTypes": ["main_frame"]
     }
   }
