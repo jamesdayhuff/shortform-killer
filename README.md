@@ -17,6 +17,11 @@ The toolbar icon opens a single on/off switch that covers both sites.
 Toggling it takes effect immediately on any open tab — no reload needed. When
 it's off the badge reads `OFF` and both sites behave normally.
 
+Chrome 111 or newer is recommended. The page-world script that catches
+Facebook's in-page navigation declares `"world": "MAIN"`, a manifest key
+added in 111; older Chrome ignores the key and falls back to the slightly
+later `location.href` check described under *How it works*.
+
 ## What it does
 
 **YouTube** — hides Shorts from the home feed (both the carousel shelf and
@@ -35,7 +40,7 @@ Two independent layers, because both sites are single-page apps:
 | Layer | Handles | Mechanism |
 | --- | --- | --- |
 | `declarativeNetRequest` (`rules.json`) | Hard navigations: pasted URLs, new tabs, external links, bookmarks | Redirects `main_frame` requests at the network layer. The site never loads at all. |
-| Content script guard (`content.js`) | In-page navigation, which makes no document request and so never triggers the rule above | Watches YouTube's `yt-navigate-*` events and the patched `history.pushState` that Facebook routes through, then `location.replace()`s to the block page. |
+| Content script guard (`content.js` + `fb-history.js`) | In-page navigation, which makes no document request and so never triggers the rule above | Watches YouTube's `yt-navigate-*` events, plus a `sfk:navigate` event bridged out of the page's own JS world for Facebook, then `location.replace()`s to the block page. See below — this is subtler than it looks. |
 
 Hiding is CSS-first. The stylesheets are injected at `document_start`, so
 short-form content is never painted in the first place — there's no flash of
@@ -46,6 +51,28 @@ flip rather than a re-injection. Nothing is ever removed from the DOM, only
 
 Detection is by URL and DOM markers only — never video duration — so a
 legitimate 45-second long-form video is never caught by mistake.
+
+### Catching in-page navigation across the isolated world
+
+Content scripts run in an *isolated world*: they share the DOM with the page
+but get their own copy of the JavaScript globals. That makes the obvious
+approach silently useless. Patching `history.pushState` from `content.js`
+patches the extension's copy of `history` — Facebook's router goes on calling
+the page's untouched original, so the patch never runs. Nothing throws and
+nothing logs; the guard is simply never called and the Reel plays.
+
+YouTube escaped this only because `yt-navigate-start` is a real DOM event,
+and DOM events *do* cross the world boundary. Facebook fires no equivalent,
+so `fb-history.js` manufactures one. It is injected into the page's own world
+(`"world": "MAIN"` in the manifest), wraps `pushState` / `replaceState`, and
+re-broadcasts each call as a `sfk:navigate` DOM event that `content.js` can
+hear. It dispatches *after* the original call, so `location` already reflects
+the new URL, and it swallows listener exceptions so the site's router sees
+behaviour identical to the unpatched original.
+
+Underneath all of that, the MutationObserver also compares `location.href`
+against the last one it saw. That catches a URL change arriving by any other
+route, and covers Chrome below 111, where `"world": "MAIN"` is not supported.
 
 ### The block page knows where you came from
 
@@ -87,6 +114,7 @@ rules.json           declarativeNetRequest rules (the URL blocks)
 hide.css             YouTube selectors, in one place
 facebook.css         Facebook selectors, in one place
 content.js           attribute toggle, SPA URL guard, observer safety net
+fb-history.js        page-world shim: re-broadcasts pushState as a DOM event
 background.js        service worker: state, ruleset enable/disable, badge
 popup.html/.css/.js  the on/off switch
 blocked.html/.css/.js  the interstitial
@@ -102,18 +130,23 @@ Run the pre-flight check before reloading the extension:
 python3 tools/check.py
 ```
 
-It verifies three things that each broke the extension once:
+It verifies four things that each broke the extension once:
 
 - **No filename anywhere starts with `_`.** Chrome reserves that prefix and
   refuses to load the *entire* extension if it finds one, reporting
   `Could not load manifest` while naming a file that has nothing to do with
   the manifest. A stray scratch file called `_fbfixture.html` caused exactly
-  that. Chrome's own `_metadata` and `_locales` are allowed. **Keep scratch
-  and temp files outside the extension folder.**
+  that. Chrome's own `_metadata` and `_locales` are allowed, along with the
+  underscore-prefixed files Chrome writes inside them. **Keep scratch and
+  temp files outside the extension folder.**
 - **Assets are *referenced*, not merely present** — a missing `<script src>`
   shipped once, with the file sitting right there on disk.
 - **Every redirect target is in `web_accessible_resources`** — an omission
   there makes the redirect fail silently, with no error anywhere.
+- **Every `sfk:` event a main-world script names has an isolated-world
+  listener.** Rename one end of that bridge and both halves stay present and
+  valid while nothing connects them — the same shape as the `pushState` bug
+  above, and just as quiet.
 
 ## Maintenance note
 
@@ -147,6 +180,13 @@ open tools/fixtures/feed-test.html
 
 That wraps the real Reels card in a realistic feed and asserts the card and
 nav entry are hidden while every neighbouring post, the feed itself, and a
-lone Reel link inside a genuine post all survive. Ten assertions, currently
-all passing. If Facebook changes its markup, re-capture
-`tools/fixtures/reels-card.html` from a real feed and re-run it.
+lone Reel link inside a genuine post all survive. If Facebook changes its
+markup, re-capture `tools/fixtures/reels-card.html` from a real feed and
+re-run it.
+
+Note what that fixture does **not** cover. It exercises the *hiding* rules
+only: the harness inlines `content.js` with `location.hostname` and
+`location.pathname` swapped for stubs, but `location.href` is left alone, so
+the observer's URL check reads the unchanging `file://` address and never
+fires. The navigation guard — the whole `sfk:navigate` path above — has no
+coverage here and has to be checked against the live site.
