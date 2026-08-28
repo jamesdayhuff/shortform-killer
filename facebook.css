@@ -6,10 +6,10 @@
  * The one dependable signal is the link target, so every rule below keys
  * off href and nothing else.
  *
- * Scope note: all of this is confined to [role="navigation"]. Reels that
- * appear inline in the news feed are deliberately NOT hidden here — the
- * feed is a moving target of generated markup, and a wrong guess there
- * hides real posts. Opening one is caught by the URL block instead.
+ * The in-feed Reels carousel is not handled here. It has no selector worth
+ * writing — Facebook nests it ~17 levels deep in generated markup — so
+ * content.js finds it structurally and marks it with data-sfk-hide, which
+ * the last rule below picks up.
  */
 
 /* The nav row that holds the Reels link. [role="listitem"] is Facebook's

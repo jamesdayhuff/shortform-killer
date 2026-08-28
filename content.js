@@ -37,6 +37,15 @@ function start() {
 
   let enabled = true;
 
+  /* Declared up here, not next to the observer, because setEnabled() below
+   * calls scheduleSweep() and that reads all three. Chrome's storage
+   * callback happens to be async today, which hides the ordering, but a
+   * synchronous call would hit the temporal dead zone and kill the script. */
+  const sweep = site.id === 'youtube' ? sweepYouTube : sweepFacebook;
+  let scheduled = false;
+  const idle = (cb) =>
+    window.requestIdleCallback ? window.requestIdleCallback(cb) : setTimeout(cb, 200);
+
   function setEnabled(next) {
     enabled = next;
     if (next) {
@@ -110,24 +119,99 @@ function start() {
     }
   }
 
+  /* A shelf has to hold at least this many Reels before it is touched. An
+   * ordinary post that links one Reel has one; the carousel has a row. This
+   * is the main guard against hiding somebody's actual post. */
+  const SHELF_MIN_REELS = 3;
+
+  /* Share of a container's links that must point at Reels for it still to
+   * be the shelf rather than a chunk of surrounding feed. Not 1.0, so one
+   * stray link in the card doesn't stop the climb. */
+  const SHELF_MIN_RATIO = 0.8;
+
+  const REEL_LINK = 'a[href*="/reel/"]';
+
+  /* Boundaries the climb must never cross. Hitting any of these means we
+   * are about to swallow the feed or a real post. */
+  const CLIMB_STOP = '[role="feed"], [role="main"], [role="banner"], [role="complementary"]';
+
+  /* Facebook ships generated class names, so there is no selector for the
+   * card. Climb from the carousel to the card that wraps it, stopping the
+   * moment the subtree stops being purely Reels. Hiding only the carousel
+   * would leave the "Reels" heading and an empty card behind, so the climb
+   * is what makes the whole block disappear.
+   *
+   * Note the [role="article"] stop is a descendant check: climbing *to* a
+   * card that is itself an article is fine, climbing past it is not. */
+  function cardFor(start) {
+    let best = start;
+    let node = start;
+
+    /* Generous bound: the real boundary should be one of the hard stops
+     * below, not this counter. Facebook nests the carousel roughly 17
+     * levels inside its feed card, so a tight cap silently stops the climb
+     * part-way and leaves the empty card behind. */
+    for (let i = 0; i < 30; i++) {
+      node = node.parentElement;
+      if (!node || node === document.body) break;
+      if (node.matches(CLIMB_STOP)) break;
+      if (node.querySelector('[role="feed"]')) break;
+      if (node.querySelector('[role="article"]')) break; // reached a real post
+
+      const reels = node.querySelectorAll(REEL_LINK).length;
+      const total = node.querySelectorAll('a[href]').length;
+      if (total && reels / total < SHELF_MIN_RATIO) break;
+
+      best = node;
+    }
+
+    return best;
+  }
+
   function sweepFacebook() {
     /* Facebook's markup is obfuscated generated class names with no stable
-     * hooks, so the nav entry is found by its link target and then hidden
-     * at whatever the nearest row-like ancestor turns out to be. Scoped to
-     * [role="navigation"] so Reels appearing in the feed are left alone —
-     * clicking one of those is caught by the URL guard instead. */
+     * hooks, so everything here is found by link target, ARIA role and
+     * structure — never by class name or visible text. */
+
+    /* 1. The Reels entry in the left nav. */
     for (const nav of document.querySelectorAll('[role="navigation"]')) {
       for (const link of nav.querySelectorAll('a[href*="/reel/"], a[href*="/reels/"]')) {
         const row = link.closest('[role="listitem"]') || link;
         if (!row.hasAttribute('data-sfk-hide')) row.setAttribute('data-sfk-hide', '1');
       }
     }
+
+    /* 2. The Reels carousel in the home feed. Facebook marks it up as a
+     * region; we identify it by the Reel links it holds rather than by its
+     * aria-label, which is localized. */
+    const shelves = new Set();
+
+    for (const region of document.querySelectorAll('[role="region"]')) {
+      if (region.querySelectorAll(REEL_LINK).length >= SHELF_MIN_REELS) shelves.add(region);
+    }
+
+    /* Fallback for a layout with no region wrapper: climb just far enough
+     * from a Reel link to gather the row. */
+    if (!shelves.size) {
+      for (const link of document.querySelectorAll(REEL_LINK)) {
+        if (link.closest('[role="navigation"]')) continue;
+        let node = link;
+        for (let i = 0; i < 10 && node.parentElement; i++) {
+          node = node.parentElement;
+          if (node.querySelectorAll(REEL_LINK).length >= SHELF_MIN_REELS) {
+            shelves.add(node);
+            break;
+          }
+        }
+      }
+    }
+
+    for (const shelf of shelves) {
+      if (shelf.closest('[role="navigation"]')) continue;
+      if (shelf.closest('[data-sfk-hide="1"]')) continue;
+      cardFor(shelf).setAttribute('data-sfk-hide', '1');
+    }
   }
-
-  const sweep = site.id === 'youtube' ? sweepYouTube : sweepFacebook;
-
-  let scheduled = false;
-  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
 
   function scheduleSweep() {
     if (scheduled || !enabled) return;

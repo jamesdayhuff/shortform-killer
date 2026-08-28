@@ -25,11 +25,8 @@ the channel Shorts tab. Because the tile rules key off the link target rather
 than the page, the subscriptions feed and the watch-page sidebar get cleaned
 up too. Any `/shorts/` URL is blocked.
 
-**Facebook** — hides the **Reels** entry in the left nav, and blocks any
-`/reel/` or `/reels/` URL.
-
-Reels appearing inline in the Facebook news feed are deliberately *not*
-hidden — see [Scope](#scope-what-is-deliberately-not-covered) below.
+**Facebook** — hides the **Reels** entry in the left nav, hides the Reels
+carousel in the home feed, and blocks any `/reel/` or `/reels/` URL.
 
 ## How it works
 
@@ -58,14 +55,24 @@ adapts: arrive from a Short and it reads *"watch just one **Short**?"* with a
 **back to Facebook** button. An unrecognised or missing `from` falls back to
 the referrer, then to YouTube, so the button is never dead.
 
+### Finding the Reels carousel without a selector
+
+Facebook ships generated class names and nests the carousel about seventeen
+levels inside its feed card, so there is nothing stable to target. The card
+is found structurally instead: start at the `[role="region"]` holding the
+Reel links, then climb until the subtree stops being almost entirely Reels.
+Hiding only the carousel would leave the "Reels" heading and an empty card,
+so the climb is what makes the whole block go.
+
+Every step is bounded. The climb stops at `[role="feed"]` / `[role="main"]`,
+stops the moment an ancestor contains a `[role="article"]` (a real post), and
+stops if fewer than 80% of the container's links are Reels. A card must hold
+at least **3** Reels to be touched at all, so a post that merely links one
+Reel is left alone. Every ambiguous case resolves to *leave it alone* —
+hiding somebody's real post is a much worse failure than missing a shelf.
+
 ## Scope: what is deliberately not covered
 
-- **Reels in the Facebook news feed.** Facebook ships obfuscated, generated
-  class names with no stable hooks, and the feed is the one place where a
-  wrong guess hides real posts from real people. Everything in `facebook.css`
-  is confined to `[role="navigation"]` for that reason. If you open a Reel
-  from the feed, the URL block catches it — you get the interstitial instead
-  of the Reel.
 - **Bare `facebook.com/reel`** (no trailing slash) is caught by the content
   script rather than the network rule. The network rules match `/reel/` and
   `/reels/` *with* the slash on purpose: `||facebook.com/reel` would also
@@ -85,6 +92,8 @@ popup.html/.css/.js  the on/off switch
 blocked.html/.css/.js  the interstitial
 tools/make_icons.py  regenerates icons/ using only the Python stdlib
 tools/check.py       pre-flight check: manifest, rules, page asset wiring
+tools/make_fb_fixture.py  builds the Facebook feed regression test
+tools/fixtures/      captured real Reels-card markup + generated test page
 ```
 
 Run the pre-flight check before reloading the extension:
@@ -120,9 +129,16 @@ when toggled off. Two quirks worth knowing before editing:
 
 **Facebook** — the URL blocking is verified (`/reel/<id>` serves a real page;
 path matching was tested against 16 cases including the `reelbigfish`
-false-positive). **The left-nav hiding is not verified against the live
-logged-in DOM** — Facebook is behind a login wall, so the nav selectors are
-written defensively rather than confirmed: a `[role="listitem"]` ancestor
-rule, a bare-anchor fallback, and a JS pass in `content.js` that walks up
-from the link. If the Reels entry is still showing, that's the code to look
-at first.
+false-positive). The feed and nav hiding is verified against **captured real
+markup** rather than the live site, since Facebook is behind a login wall:
+
+```
+python3 tools/make_fb_fixture.py
+open tools/fixtures/feed-test.html
+```
+
+That wraps the real Reels card in a realistic feed and asserts the card and
+nav entry are hidden while every neighbouring post, the feed itself, and a
+lone Reel link inside a genuine post all survive. Ten assertions, currently
+all passing. If Facebook changes its markup, re-capture
+`tools/fixtures/reels-card.html` from a real feed and re-run it.
