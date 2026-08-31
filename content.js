@@ -11,8 +11,9 @@
 const ON_ATTR = 'data-sfk-on';
 const root = document.documentElement;
 
-/* Per-site config. `id` is passed to the block page as ?from=, which is how
- * it knows which site to offer to send you back to. */
+/* Per-site config. `id` doubles as the chrome.storage.local key holding
+ * this site's on/off state, and is passed to the block page as ?from=,
+ * which is how it knows which site to offer to send you back to. */
 const SITES = [
   {
     id: 'youtube',
@@ -57,10 +58,12 @@ function start() {
     }
   }
 
-  chrome.storage.local.get({ enabled: true }, (state) => setEnabled(state.enabled));
+  /* Each site is switched independently, so only this site's key matters
+   * here — the popup writes one boolean per site id. */
+  chrome.storage.local.get({ [site.id]: true }, (state) => setEnabled(state[site.id]));
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.enabled) setEnabled(changes.enabled.newValue);
+    if (area === 'local' && changes[site.id]) setEnabled(changes[site.id].newValue);
   });
 
   /* --- SPA navigation guard ------------------------------------------ */

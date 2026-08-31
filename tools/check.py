@@ -77,29 +77,50 @@ def main():
         for path in script.get("js", []) + script.get("css", []):
             check_exists(path, "manifest content_scripts")
 
-    ruleset = manifest["declarative_net_request"]["rule_resources"][0]["path"]
-    check_exists(ruleset, "manifest declarative_net_request")
-    with open(os.path.join(ROOT, ruleset)) as handle:
-        rules = json.load(handle)
+    resources = manifest["declarative_net_request"]["rule_resources"]
+    worker = None
+    with open(os.path.join(ROOT, manifest["background"]["service_worker"])) as handle:
+        worker = handle.read()
 
     # 2. Every DNR redirect target is web-accessible, or the redirect fails
     #    silently at runtime.
     exposed = set()
     for entry in manifest.get("web_accessible_resources", []):
         exposed.update(entry["resources"])
-    for rule in rules:
-        target = rule["action"].get("redirect", {}).get("extensionPath")
-        if target:
-            # extensionPath may carry a query string (?from=youtube); the
-            # file on disk and the web_accessible_resources entry are both
-            # the bare path.
-            page = target.lstrip("/").split("?", 1)[0].split("#", 1)[0]
-            check_exists(page, "rules.json redirect")
-            if page not in exposed:
-                problems.append(
-                    "%s is a redirect target but is not in web_accessible_resources "
-                    "(the redirect will fail silently)" % page
-                )
+
+    for resource in resources:
+        check_exists(resource["path"], "manifest declarative_net_request")
+        if not os.path.exists(os.path.join(ROOT, resource["path"])):
+            continue
+
+        # One ruleset per site, switched on and off by id from the service
+        # worker. An id the worker never names is a ruleset that can only
+        # ever be on, so that site's toggle would half-work: the feed would
+        # un-hide and the URLs would still be blocked.
+        if resource["id"] not in worker:
+            problems.append(
+                '%s declares the ruleset "%s" but the service worker never '
+                "names it — that site's toggle cannot disable its URL blocks"
+                % (manifest["background"]["service_worker"], resource["id"])
+            )
+
+        with open(os.path.join(ROOT, resource["path"])) as handle:
+            rules = json.load(handle)
+
+        for rule in rules:
+            target = rule["action"].get("redirect", {}).get("extensionPath")
+            if target:
+                # extensionPath may carry a query string (?from=youtube); the
+                # file on disk and the web_accessible_resources entry are both
+                # the bare path.
+                page = target.lstrip("/").split("?", 1)[0].split("#", 1)[0]
+                check_exists(page, "%s redirect" % resource["path"])
+                if page not in exposed:
+                    problems.append(
+                        "%s is a redirect target but is not in "
+                        "web_accessible_resources (the redirect will fail "
+                        "silently)" % page
+                    )
 
     # 3. Every sfk: event a "world": "MAIN" script names has a listener on
     #    the isolated-world side. A main-world script exists only to shout

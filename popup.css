@@ -64,15 +64,58 @@ h1 {
   letter-spacing: -0.01em;
 }
 
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 11px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
   cursor: pointer;
   user-select: none;
+}
+
+/* Site marks. Drawn in CSS rather than shipped as images so the popup
+   stays two files, and kept deliberately plain — enough of each brand to
+   be recognised at 20px, nothing more. */
+.site {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  flex: none;
+  position: relative;
+}
+
+.site.youtube { background: #ff0000; }
+
+.site.youtube::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 0;
+  height: 0;
+  border-left: 7px solid #fff;
+  border-top: 4.5px solid transparent;
+  border-bottom: 4.5px solid transparent;
+}
+
+.site.facebook { background: #0866ff; }
+
+.site.facebook::after {
+  content: "f";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font: 700 14px/1 Georgia, "Times New Roman", serif;
 }
 
 .label {
@@ -92,7 +135,7 @@ h1 {
 
 /* Real checkbox stays in the DOM for keyboard and a11y; the painted
    switch beside it is the visible control. */
-#toggle {
+.row input[type="checkbox"] {
   position: absolute;
   opacity: 0;
   pointer-events: none;
@@ -120,9 +163,9 @@ h1 {
   transition: transform 140ms ease;
 }
 
-#toggle:checked ~ .switch { background: var(--accent); }
-#toggle:checked ~ .switch::after { transform: translateX(17px); }
-#toggle:focus-visible ~ .switch { outline: 2px solid var(--accent); outline-offset: 2px; }
+:checked ~ .switch { background: var(--accent); }
+:checked ~ .switch::after { transform: translateX(17px); }
+:focus-visible ~ .switch { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .foot {
   margin: 12px 2px 0;

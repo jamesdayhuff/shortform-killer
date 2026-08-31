@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Shortform Killer",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Hides YouTube Shorts and Facebook Reels, and hard-blocks their URLs. Go do 5 pushups instead.",
   "permissions": ["storage", "declarativeNetRequest"],
   "host_permissions": [
@@ -51,9 +51,14 @@
   "declarative_net_request": {
     "rule_resources": [
       {
-        "id": "shorts_block",
+        "id": "youtube_rules",
         "enabled": true,
-        "path": "rules.json"
+        "path": "rules-youtube.json"
+      },
+      {
+        "id": "facebook_rules",
+        "enabled": true,
+        "path": "rules-facebook.json"
       }
     ]
   },
