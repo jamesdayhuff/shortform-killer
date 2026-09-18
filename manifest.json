@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Shortform Killer - Block YouTube Shorts & Facebook Reels",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Hides YouTube Shorts and Facebook Reels from your feeds and hard-blocks their URLs. Stay focused.",
   "permissions": ["storage", "declarativeNetRequest"],
   "host_permissions": [
